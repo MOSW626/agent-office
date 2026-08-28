@@ -347,6 +347,10 @@ async function handle(req, res) {
     });
     return;
   }
+  if (u.pathname === "/marked.js") {
+    res.writeHead(200, { "content-type": "application/javascript" });
+    return res.end(readFileSync(join(DIR, "node_modules/marked/lib/marked.esm.js")));
+  }
   if (u.pathname === "/sw.js") {
     res.writeHead(200, { "content-type": "application/javascript" });
     return res.end(readFileSync(join(DIR, "sw.js")));

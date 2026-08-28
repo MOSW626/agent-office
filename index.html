@@ -66,6 +66,28 @@
   #ovbody { flex:1; overflow-y:auto; padding:14px; }
   .f { padding:10px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }
   .f small { color:var(--dim); }
+  /* 문서 뷰 (md 파일) */
+  .doc { line-height:1.75; font-size:15px; padding-bottom:40px; }
+  .doc h1 { font-size:22px; margin:20px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  .doc h2 { font-size:18px; margin:22px 0 10px; }
+  .doc h3 { font-size:16px; margin:16px 0 8px; }
+  .doc h4 { font-size:15px; margin:14px 0 6px; color:var(--dim); }
+  .doc p { margin:0 0 12px; }
+  .doc ul, .doc ol { margin:0 0 12px; padding-left:22px; }
+  .doc li { margin-bottom:4px; }
+  .doc li > ul, .doc li > ol { margin:4px 0 0; }
+  .doc code { background:#0008; padding:1px 5px; border-radius:4px; font-size:.88em; }
+  .doc pre { background:#0008; padding:12px; border-radius:10px; overflow-x:auto; margin:0 0 14px; font-size:13px; line-height:1.5; }
+  .doc pre code { background:none; padding:0; }
+  .doc blockquote { border-left:3px solid var(--accent); margin:0 0 12px; padding:2px 0 2px 12px; color:var(--dim); }
+  .doc hr { border:0; border-top:1px solid var(--line); margin:18px 0; }
+  .doc a { color:#9db4ff; }
+  .doc img { max-width:100%; border-radius:8px; }
+  .doc .tbl { overflow-x:auto; margin:0 0 14px; }
+  .doc table { border-collapse:collapse; font-size:13px; white-space:nowrap; }
+  .doc th, .doc td { border:1px solid var(--line); padding:6px 10px; }
+  .doc th { background:var(--panel); }
+  .doc input[type=checkbox] { accent-color:var(--accent); margin-right:6px; }
 </style>
 </head>
 <body>
@@ -250,7 +272,16 @@ async function openSkills(){
 async function openFile(p){
   $("ovtitle").textContent = p;
   const t = await (await fetch(`/api/file?project=${encodeURIComponent(office)}&path=${encodeURIComponent(p)}`)).text();
-  $("ovbody").innerHTML = `<div class="bub" style="max-width:100%">${md(t)}</div>`;
+  if (/\.(md|markdown)$/i.test(p)) {
+    try {
+      const { marked } = await import("/marked.js");
+      let h = marked.parse(t.replace(/<script[\s\S]*?<\/script>/gi, ""), { breaks: true });
+      h = h.replace(/<table>/g, '<div class="tbl"><table>').replace(/<\/table>/g, "</table></div>");
+      $("ovbody").innerHTML = `<div class="doc">${h}</div>`;
+      return;
+    } catch {}
+  }
+  $("ovbody").innerHTML = `<div class="doc"><pre>${esc(t)}</pre></div>`;
 }
 async function init(){
   CFG = await (await fetch("/api/config")).json();

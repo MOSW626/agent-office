@@ -10,6 +10,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "marked": "^18.0.11",
     "web-push": "^3.6.7"
   }
 }
