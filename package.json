@@ -1,0 +1,15 @@
+{
+  "name": "agent-office",
+  "version": "1.0.0",
+  "description": "Self-hosted mobile office for multi-model AI agents (Claude Code / Codex / Grok)",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

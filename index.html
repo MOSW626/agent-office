@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>오피스</title>
+<style>
+  :root { --bg:#0e0f13; --panel:#181a21; --line:#262933; --text:#e8eaf0; --dim:#8b90a0; --me:#3b5bdb; --accent:#7c6cf0; }
+  * { box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font:15px/1.55 -apple-system,"Apple SD Gothic Neo",sans-serif; height:100dvh; overflow:hidden; }
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column; background:var(--bg); transition:transform .25s ease; }
+  #office { transform:translateX(100%); }
+  body.in #lobby { transform:translateX(-30%); }
+  body.in #office { transform:translateX(0); }
+  /* ---- 로비 ---- */
+  #lobby header { padding:calc(env(safe-area-inset-top) + 22px) 20px 14px; }
+  #lobby h1 { font-size:22px; }
+  #lobby .sub { font-size:12px; color:var(--dim); margin-top:2px; min-height:16px; }
+  #cards { flex:1; overflow-y:auto; padding:6px 16px calc(env(safe-area-inset-bottom) + 16px); }
+  .card { display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .card:active { background:#20242e; }
+  .card .ic { font-size:30px; width:52px; height:52px; border-radius:14px; background:var(--line); display:flex; align-items:center; justify-content:center; flex:none; }
+  .card b { font-size:16px; } .card small { display:block; color:var(--dim); margin-top:2px; }
+  .card .go { margin-left:auto; color:var(--dim); font-size:18px; }
+  .st { font-size:10px; padding:2px 8px; border-radius:8px; background:var(--line); color:var(--dim); margin-left:8px; vertical-align:2px; }
+  .st.working { background:#1c3a26; color:#5fd68a; }
+  .st.today { background:#22304a; color:#7ba7e8; }
+  /* ---- 오피스 ---- */
+  #ohead { display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top) + 8px) 12px 8px; background:var(--panel); border-bottom:1px solid var(--line); }
+  #ohead .back { background:var(--line); border:0; color:var(--text); border-radius:10px; padding:6px 12px; font:inherit; }
+  #ohead .oname { font-size:16px; font-weight:700; }
+  #ohead .odesc { font-size:11px; color:var(--dim); }
+  #tabs { display:flex; gap:16px; justify-content:center; padding:8px 0 6px; background:var(--panel); border-bottom:1px solid var(--line); }
+  .tab { text-align:center; opacity:.45; }
+  .tab.on { opacity:1; }
+  .tab .av { width:44px; height:44px; border-radius:50%; background:var(--line); font-size:22px; display:flex; align-items:center; justify-content:center; margin:0 auto 2px; border:2px solid transparent; }
+  .tab.on .av { border-color:var(--accent); }
+  .tab .nm { font-size:12px; } .tab .rl { font-size:10px; color:var(--dim); }
+  #chat { flex:1; overflow-y:auto; padding:12px 12px 4px; }
+  .row { display:flex; gap:8px; margin-bottom:8px; align-items:flex-end; }
+  .row.cont { margin-top:-3px; }
+  .row.me { flex-direction:row-reverse; }
+  .time { font-size:10px; color:var(--dim); flex:none; margin-bottom:2px; }
+  .bubrow { display:flex; align-items:flex-end; gap:5px; }
+  .datesep { text-align:center; margin:16px 0 10px; }
+  .datesep span { font-size:11px; color:var(--dim); background:var(--panel); padding:3px 12px; border-radius:12px; }
+  .row .av { width:30px; height:30px; border-radius:50%; background:var(--line); font-size:15px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .bub { max-width:78%; padding:9px 12px; border-radius:14px; background:var(--panel); white-space:pre-wrap; word-break:break-word; }
+  .row.me .bub { background:var(--me); }
+  .from { font-size:11px; color:var(--dim); margin:0 0 3px 2px; }
+  .bub :is(h1,h2,h3){ font-size:1em; margin:.3em 0; } .bub code{ background:#0008; padding:1px 4px; border-radius:4px; font-size:.9em; }
+  .bub pre{ background:#0008; padding:8px; border-radius:8px; overflow-x:auto; margin:.3em 0; } .bub a{ color:#9db4ff; }
+  #busy { font-size:12px; color:var(--dim); padding:0 16px 4px; min-height:18px; }
+  footer { padding:8px 10px calc(env(safe-area-inset-bottom) + 8px); background:var(--panel); border-top:1px solid var(--line); }
+  #bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; font-size:12px; }
+  #verify { accent-color:var(--accent); }
+  #inrow { display:flex; gap:8px; }
+  textarea { flex:1; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:9px 12px; font:inherit; resize:none; height:40px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:12px; padding:0 16px; font:inherit; }
+  .ghost { background:var(--line); }
+  #overlay { position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; z-index:9; }
+  #overlay.show { display:flex; }
+  #ovhead { display:flex; gap:10px; align-items:center; padding:calc(env(safe-area-inset-top) + 10px) 14px 10px; background:var(--panel); border-bottom:1px solid var(--line); }
+  #ovbody { flex:1; overflow-y:auto; padding:14px; }
+  .f { padding:10px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }
+  .f small { color:var(--dim); }
+</style>
+</head>
+<body>
+<div class="screen" id="lobby">
+  <header style="display:flex;align-items:flex-start">
+    <div style="flex:1"><h1>🏙️ 오피스</h1><div class="sub" id="usage">사용량 불러오는 중…</div></div>
+    <button class="ghost" style="padding:8px 12px;margin-right:6px" onclick="enablePush()" id="bell">🔔</button>
+    <button class="ghost" style="padding:8px 12px" onclick="openSkills()">🧰 스킬</button>
+  </header>
+  <div id="cards"></div>
+</div>
+<div class="screen" id="office">
+  <div id="ohead">
+    <button class="back" onclick="leave()">←</button>
+    <div><div class="oname" id="oname"></div><div class="odesc" id="odesc"></div></div>
+    <button class="ghost" style="margin-left:auto;padding:6px 12px" onclick="openSessions()">📜</button>
+    <button class="ghost" style="padding:6px 12px" onclick="openFiles()">📁</button>
+  </div>
+  <div id="tabs"></div>
+  <div id="chat"></div>
+  <div id="busy"></div>
+  <footer>
+    <div id="bar"><label><input type="checkbox" id="verify"> 교차검증 (무진 실행 → 하연 검증 → 아라 보고)</label></div>
+    <div id="inrow">
+      <textarea id="input" placeholder="지시를 입력하세요" rows="1"></textarea>
+      <button onclick="send()">전송</button>
+    </div>
+  </footer>
+</div>
+<div id="overlay">
+  <div id="ovhead"><button class="ghost" style="padding:6px 12px" onclick="ov.classList.remove('show')">←</button><b id="ovtitle"></b></div>
+  <div id="ovbody"></div>
+</div>
+<script>
+let CFG, office = null, room = null, busyset = {};
+const $ = id => document.getElementById(id);
+const ov = $("overlay");
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function md(s){
+  s = esc(s);
+  s = s.replace(/```([\s\S]*?)```/g, (_,c)=>`<pre>${c.trim()}</pre>`);
+  s = s.replace(/`([^`\n]+)`/g,"<code>$1</code>");
+  s = s.replace(/^### (.*)$/gm,"<h3>$1</h3>").replace(/^## (.*)$/gm,"<h2>$1</h2>").replace(/^# (.*)$/gm,"<h1>$1</h1>");
+  s = s.replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+  s = s.replace(/^[-*] (.*)$/gm,"• $1");
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+  return s;
+}
+function render(list){
+  let html = "", prevDay = "", prev = null;
+  for (const m of list) {
+    const d = new Date(m.ts);
+    const day = d.toLocaleDateString("ko", { month: "long", day: "numeric", weekday: "short" });
+    if (day !== prevDay) { html += `<div class="datesep"><span>${day}</span></div>`; prevDay = day; prev = null; }
+    const time = d.toLocaleTimeString("ko", { hour: "2-digit", minute: "2-digit" });
+    const cont = prev && prev.from === m.from && m.ts - prev.ts < 300000;
+    if (m.from === "me")
+      html += `<div class="row me${cont ? " cont" : ""}"><div class="bub">${md(m.text)}</div><span class="time">${time}</span></div>`;
+    else
+      html += `<div class="row${cont ? " cont" : ""}"><div class="av"${cont ? ' style="visibility:hidden"' : ""}>${CFG.agents[m.from]?.avatar || "⚙️"}</div><div>${cont ? "" : `<div class="from">${m.from} · ${CFG.agents[m.from]?.role || ""}</div>`}<div class="bubrow"><div class="bub">${md(m.text)}</div><span class="time">${time}</span></div></div></div>`;
+    prev = m;
+  }
+  $("chat").innerHTML = html;
+  $("chat").scrollTop = 1e9;
+}
+async function load(){
+  render(await (await fetch(`/api/messages?room=${encodeURIComponent(room)}&project=${encodeURIComponent(office)}`)).json());
+}
+function enter(name){
+  office = name;
+  const p = CFG.projects[name];
+  $("oname").textContent = `${p.icon} ${name}`;
+  $("odesc").textContent = p.desc;
+  fetch("/api/todo?project="+encodeURIComponent(name)).then(r=>r.json()).then(t=>{
+    if (office === name && t.open) { $("odesc").innerHTML = `${esc(p.desc)} · <a onclick="openFiles();openFile('TODO.md')" style="color:#7ba7e8">✅ 할일 ${t.open}</a>`; }
+  }).catch(()=>{});
+  document.body.classList.add("in");
+  setRoom(room || Object.keys(CFG.agents)[0]);
+}
+async function enablePush(){
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return alert("이 브라우저/접속경로에선 푸시 불가 — HTTPS 주소(ts.net)로 접속해야 합니다.");
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    if (await Notification.requestPermission() !== "granted") return alert("알림 권한이 거부됐습니다.");
+    const { key } = await (await fetch("/api/vapid")).json();
+    const b64 = key.replace(/-/g,"+").replace(/_/g,"/");
+    const raw = atob(b64 + "=".repeat((4 - b64.length % 4) % 4));
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from([...raw].map(c=>c.charCodeAt(0))) });
+    const r = await (await fetch("/api/subscribe", { method:"POST", body: JSON.stringify(sub) })).json();
+    $("bell").textContent = "🔔✓";
+    alert("푸시 알림 켜짐 (기기 " + r.total + "대)");
+  } catch(e){ alert("푸시 설정 실패: " + e.message); }
+}
+function leave(){ document.body.classList.remove("in"); office = null; }
+function setRoom(name){
+  room = name;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.n === name));
+  showBusy(); load();
+}
+async function send(){
+  const text = $("input").value.trim();
+  if (!text) return;
+  $("input").value = ""; $("input").style.height = "40px";
+  await fetch("/api/send", { method:"POST", body: JSON.stringify({ room, text, project: office, verify: $("verify").checked }) });
+  load();
+}
+function showBusy(){
+  const on = Object.entries(busyset).filter(([k,v])=>v && k.startsWith(office+"|"+room+"|")).map(([k])=>k.split("|")[2]);
+  $("busy").textContent = on.length ? on.join(", ") + " 작업 중…" : "";
+}
+async function openFiles(){
+  ov.classList.add("show"); $("ovtitle").textContent = office;
+  const fs = await (await fetch("/api/files?project="+encodeURIComponent(office))).json();
+  $("ovbody").innerHTML = fs.map(f=>`<div class="f" onclick="openFile('${f.path.replace(/'/g,"\\'")}')">${f.md?"📄":"·"} ${f.path}<small>${(f.size/1024).toFixed(1)}k</small></div>`).join("") || "파일 없음";
+}
+async function openSessions(){
+  ov.classList.add("show"); $("ovtitle").textContent = office + " · 세션 기록";
+  const ss = await (await fetch("/api/sessions?project="+encodeURIComponent(office))).json();
+  $("ovbody").innerHTML = ss.map(s=>`<div class="f" onclick="openSession('${s.id}')"><div>💬 ${esc(s.title)}<br><small>${new Date(s.mtime).toLocaleString("ko")}</small></div><small>${(s.size/1024).toFixed(0)}k</small></div>`).join("") || "세션 없음";
+}
+async function openSession(id){
+  $("ovtitle").textContent = "세션 " + id.slice(0,8);
+  const ms = await (await fetch(`/api/session?project=${encodeURIComponent(office)}&id=${id}`)).json();
+  $("ovbody").innerHTML = ms.map(m => m.role === "user"
+    ? `<div class="row me"><div class="bub">${md(m.text)}</div></div>`
+    : `<div class="row"><div class="av">✳️</div><div><div class="from">Claude</div><div class="bub">${md(m.text)}</div></div></div>`).join("")
+    + `<div id="resrow" style="display:flex;gap:8px;padding:10px 0 20px"><textarea id="resin" rows="1" placeholder="이 세션에 이어서 지시…" style="flex:1"></textarea><button onclick="resume('${id}')">전송</button></div>`;
+  $("ovbody").scrollTop = 1e9;
+}
+async function resume(id){
+  const text = $("resin").value.trim();
+  if (!text) return;
+  $("resin").value = ""; $("resin").placeholder = "실행 중… (수 분 걸릴 수 있음)";
+  const r = await (await fetch("/api/resume", { method:"POST", body: JSON.stringify({ project: office, id, text }) })).json();
+  $("resrow").insertAdjacentHTML("beforebegin",
+    `<div class="row me"><div class="bub">${md(text)}</div></div>
+     <div class="row"><div class="av">✳️</div><div><div class="from">Claude (이어짐)</div><div class="bub">${md(r.text || r.error)}</div></div></div>`);
+  $("resin").placeholder = "이 세션에 이어서 지시…";
+  $("ovbody").scrollTop = 1e9;
+}
+let LIM = null;
+const bar = (label, pct, sub) => {
+  const p = Math.min(100, Math.round(pct));
+  const col = p >= 80 ? "#e8896b" : p >= 50 ? "#e8c96b" : "#5fd68a";
+  return `<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${label}</span><b style="color:${col}">${p}%</b></div>
+  <div style="height:8px;background:var(--line);border-radius:4px"><div style="width:${p}%;height:100%;background:${col};border-radius:4px"></div></div>
+  ${sub?`<small style="color:var(--dim)">${sub}</small>`:""}</div>`;
+};
+async function openUsage(){
+  ov.classList.add("show"); $("ovtitle").textContent = "📊 사용량";
+  $("ovbody").innerHTML = "불러오는 중…";
+  const [l, u] = await Promise.all([
+    LIM ? Promise.resolve(LIM) : fetch("/api/limits").then(r=>r.json()),
+    fetch("/api/usage").then(r=>r.json()).catch(()=>({})),
+  ]);
+  LIM = l;
+  const t = s => s ? new Date(s).toLocaleString("ko",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
+  let h = "<h2 style='margin-bottom:12px'>✳️ Claude</h2>";
+  h += l?.claude ? bar("5시간 창", l.claude.five_hour?.pct||0, l.claude.five_hour?.resets_at?`리셋 ${t(l.claude.five_hour.resets_at)}`:"")
+    + bar("주간", l.claude.seven_day?.pct||0, l.claude.seven_day?.resets_at?`리셋 ${t(l.claude.seven_day.resets_at)}`:"") : "<small>조회 불가</small>";
+  h += "<h2 style='margin:18px 0 12px'>🌀 Codex</h2>";
+  h += l?.codex ? bar(`${l.codex.window_hours>=168?"주간":l.codex.window_hours+"시간"} 창 (${l.codex.plan||""})`, l.codex.pct, `리셋 ${t(l.codex.resets_at)} · 마지막 실행 시점(${t(l.codex.asof)}) 기준`) : "<small>기록 없음 — codex 실행 후 표시</small>";
+  h += "<h2 style='margin:18px 0 12px'>⚡ Grok</h2>";
+  h += l?.grok ? bar("크레딧", l.grok.pct, `마지막 실행 시점(${t(l.grok.asof)}) 기준`) : "<small>기록 없음 — grok 실행 후 표시</small>";
+  const today = new Date().toLocaleDateString("sv");
+  const f = (d,tag) => d ? `<div style="font-size:13px;margin-bottom:6px">${tag}: <b>${(d.totalTokens/1000).toFixed(0)}k tok</b> · $${(+d.totalCost||0).toFixed(2)}${d.date!==today?` (${d.date})`:""}</div>` : "";
+  h += "<h2 style='margin:18px 0 12px'>💵 오늘 토큰·비용</h2>" + (f(u.claude,"Claude")+f(u.codex,"Codex") || "<small>없음</small>");
+  $("ovbody").innerHTML = h;
+}
+let skillsRaw = null;
+async function openSkills(){
+  ov.classList.add("show"); $("ovtitle").textContent = "🧰 스킬 셋";
+  if (skillsRaw === null) skillsRaw = await (await fetch("/api/skills")).text();
+  $("ovbody").innerHTML = `<input id="skq" placeholder="스킬 검색…" style="width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;margin-bottom:10px"><div id="sklist" class="bub" style="max-width:100%"></div>`;
+  const renderSk = q => {
+    const lines = q ? skillsRaw.split("\n").filter(l => l.toLowerCase().includes(q.toLowerCase())) : skillsRaw.split("\n");
+    $("sklist").innerHTML = md(lines.slice(0, 400).join("\n")) + (lines.length > 400 ? "<br>…(더 있음, 검색으로 좁히세요)" : "");
+  };
+  renderSk("");
+  $("skq").addEventListener("input", e => renderSk(e.target.value));
+}
+async function openFile(p){
+  $("ovtitle").textContent = p;
+  const t = await (await fetch(`/api/file?project=${encodeURIComponent(office)}&path=${encodeURIComponent(p)}`)).text();
+  $("ovbody").innerHTML = `<div class="bub" style="max-width:100%">${md(t)}</div>`;
+}
+async function init(){
+  CFG = await (await fetch("/api/config")).json();
+  $("cards").innerHTML =
+    `<div class="card" onclick="openUsage()"><div class="ic">📊</div><div><b>사용량</b><small>Claude · Codex · Grok 한도와 오늘 비용</small></div><div class="go">›</div></div>`
+    + Object.entries(CFG.projects).map(([n,p]) =>
+    `<div class="card" onclick="enter('${n}')"><div class="ic">${p.icon}</div><div><b>${n}</b><span class="st" id="st-${n}"></span><small>${p.desc}</small></div><div class="go">›</div></div>`).join("");
+  fetch("/api/status").then(r=>r.json()).then(st=>{
+    const label = { working:"● 작업 중", today:"오늘 활동", idle:"", none:"" };
+    for (const [n,v] of Object.entries(st)) { const el = $("st-"+n); if (el && label[v]) { el.textContent = label[v]; el.className = "st "+v; } }
+  }).catch(()=>{});
+  $("tabs").innerHTML = Object.entries(CFG.agents).map(([n,a]) =>
+    `<div class="tab" data-n="${n}" onclick="setRoom('${n}')"><div class="av">${a.avatar}</div><div class="nm">${n}</div><div class="rl">${a.role}${a.backend==="codex"?" ·cx":""}</div></div>`).join("");
+  const es = new EventSource("/api/stream");
+  es.onmessage = e => {
+    const ev = JSON.parse(e.data);
+    if (ev.type === "msg" && ev.room === room && ev.project === office) load();
+    if (ev.type === "busy") { busyset[ev.project+"|"+ev.room+"|"+ev.who] = ev.on; if(office) showBusy(); }
+  };
+  fetch("/api/usage").then(r=>r.json()).then(u=>{
+    const today = new Date().toLocaleDateString("sv");
+    const f = (d,tag) => d ? `${tag} ${(d.totalTokens/1000).toFixed(0)}k · $${(+d.totalCost||0).toFixed(2)}${d.date!==today?` (${d.date})`:""}` : "";
+    $("usage").textContent = [f(u.claude,"Claude"), f(u.codex,"Codex")].filter(Boolean).join("  |  ") || "오늘 사용량 없음";
+    return fetch("/api/limits").then(r=>r.json());
+  }).then(l=>{
+    LIM = l;
+    const c = l?.claude;
+    if (!c) return;
+    const seg = (o,tag) => o ? `${tag} ${Math.round(o.pct)}%${o.resets_at?` (${new Date(o.resets_at).toLocaleTimeString("ko",{hour:"2-digit",minute:"2-digit"})} 리셋)`:""}` : "";
+    const line = [seg(c.five_hour,"⏱ 5시간"), seg(c.seven_day,"주간")].filter(Boolean).join(" · ");
+    const warn = Math.max(c.five_hour?.pct||0, c.seven_day?.pct||0) >= 80;
+    if (line) $("usage").innerHTML += `<br><span style="${warn?"color:#e8896b":""}">${line}</span>`;
+  }).catch(()=>{});
+  $("input").addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
+  $("input").addEventListener("input", e => { e.target.style.height = "40px"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; });
+}
+init();
+</script>
+</body>
+</html>
