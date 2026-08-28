@@ -2,7 +2,7 @@
 
 **Walk into your office. Your AI staff is already working.**
 
-A self-hosted mobile "office" for running multiple AI coding agents (Claude Code, OpenAI Codex, xAI Grok) across all your projects — from your phone, like a group chat. Zero framework, zero database, one `npm` dependency (`web-push`). Two files of code.
+A self-hosted mobile "office" for running multiple AI coding agents (Claude Code, OpenAI Codex, xAI Grok) across all your projects — from your phone, like a group chat. Zero framework, zero database, two `npm` dependencies (`marked`, `web-push`). Two files of code.
 
 [한국어 README](README.ko.md)
 
@@ -42,12 +42,32 @@ Default staff (rename/re-prompt them freely in `config.json`):
 
 Requirements: macOS, Node 18+, [Claude Code](https://claude.com/claude-code) logged in. Optional: `codex` CLI, `grok` CLI (Grok Build), [Tailscale](https://tailscale.com) for phone access.
 
+**One command:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MOSW626/agent-office/main/install.sh | bash
+```
+
+It checks prerequisites, clones to `~/agent-office`, installs the dependencies, creates your `config.json`, and (optionally, it asks) installs the [agent harness](#pairs-well-with-a-project-harness) and registers the 24/7 server + morning brief with launchd. Re-running it updates the install. Non-interactive flags:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MOSW626/agent-office/main/install.sh | bash -s -- --all
+# --with-harness   unlazy + gstack + gbrain
+# --with-launchd   24/7 server + 07:30 brief
+# --dir <path>     install location (default ~/agent-office)
+```
+
+<details>
+<summary>Manual install</summary>
+
 ```sh
 git clone https://github.com/MOSW626/agent-office.git && cd agent-office
-npm install                      # web-push only
+npm install                      # marked + web-push
 cp config.example.json config.json   # edit: your projects' paths, your agents
 node server.mjs                  # → http://localhost:8787
 ```
+
+</details>
 
 ### Phone access (Tailscale)
 

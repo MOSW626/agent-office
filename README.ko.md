@@ -2,7 +2,7 @@
 
 **오피스에 입장하면, AI 직원들이 이미 일하고 있습니다.**
 
-여러 프로젝트를 여러 AI 코딩 에이전트(Claude Code · OpenAI Codex · xAI Grok)로 굴리는 셀프호스팅 모바일 "비서실". 폰에서 단톡방처럼 지시하고 보고받습니다. 프레임워크 0, DB 0, npm 의존성 1개(`web-push`), 코드 파일 2개.
+여러 프로젝트를 여러 AI 코딩 에이전트(Claude Code · OpenAI Codex · xAI Grok)로 굴리는 셀프호스팅 모바일 "비서실". 폰에서 단톡방처럼 지시하고 보고받습니다. 프레임워크 0, DB 0, npm 의존성 2개(`marked`, `web-push`), 코드 파일 2개.
 
 [English README](README.md)
 
@@ -42,12 +42,32 @@
 
 필요: macOS, Node 18+, [Claude Code](https://claude.com/claude-code) 로그인. 선택: `codex` CLI, `grok` CLI(Grok Build), 폰 접속용 [Tailscale](https://tailscale.com).
 
+**명령어 하나로:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MOSW626/agent-office/main/install.sh | bash
+```
+
+사전 요구사항 체크 → `~/agent-office`에 클론 → 의존성 설치 → `config.json` 생성까지 자동. 물어보고 진행하는 선택 항목: [에이전트 하네스](#프로젝트-관리-하네스와-함께-쓰기)(unlazy+gstack+gbrain) 설치, launchd 상시 운영 + 아침 브리핑 등록. 다시 실행하면 업데이트됩니다. 비대화형 플래그:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MOSW626/agent-office/main/install.sh | bash -s -- --all
+# --with-harness   unlazy + gstack + gbrain
+# --with-launchd   상시 서버 + 07:30 브리핑
+# --dir <경로>      설치 위치 (기본 ~/agent-office)
+```
+
+<details>
+<summary>수동 설치</summary>
+
 ```sh
 git clone https://github.com/MOSW626/agent-office.git && cd agent-office
-npm install                          # web-push 하나뿐
+npm install                          # marked + web-push 두 개
 cp config.example.json config.json   # 프로젝트 경로·비서 구성 수정
 node server.mjs                      # → http://localhost:8787
 ```
+
+</details>
 
 ### 폰 접속 (Tailscale)
 

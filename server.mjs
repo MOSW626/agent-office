@@ -33,7 +33,9 @@ const post = (msg) => {
 };
 const busy = (room, who, on, project) => broadcast({ type: "busy", room, who, on, project });
 
-const PATH_ENV = process.env.PATH + ":" + process.env.HOME + "/.bun/bin:" + process.env.HOME + "/.local/bin";
+// launchd 실행 시 PATH가 최소로 잡히므로 homebrew·node 경로를 명시적으로 보강
+const PATH_ENV = [process.env.PATH, dirname(process.execPath), "/opt/homebrew/bin", "/usr/local/bin",
+  process.env.HOME + "/.bun/bin", process.env.HOME + "/.local/bin"].join(":");
 const run = (bin, args, cwd, timeout = 600_000) =>
   new Promise((done) => {
     const child = execFile(bin, args, { cwd, timeout, maxBuffer: 20 * 1024 * 1024, env: { ...process.env, PATH: PATH_ENV } }, (err, stdout, stderr) => {
@@ -92,7 +94,7 @@ async function orchestrate({ room, text, project, verify }) {
       post({ room, from: room, text: out, project });
     } else {
       busy(room, "무진", true, project);
-      const work = await runAgent("무진", ctx + "\n\n작업을 수행하고 결과를 보고하라.", cwd);
+      const work = await runAgent("무진", ctx + "\n\n작업을 수행하고 결과를 보고하라. 보고 첫 줄은 반드시 `📊 진행률 N/M 단계 · 남은 것: … · 예상: …` 한 줄로 시작하라.", cwd);
       busy(room, "무진", false, project);
       post({ room, from: "무진", text: work, project });
       busy(room, "하연", true, project);
@@ -100,7 +102,7 @@ async function orchestrate({ room, text, project, verify }) {
       busy(room, "하연", false, project);
       post({ room, from: "하연", text: audit, project });
       busy(room, "아라", true, project);
-      const sum = await runAgent("아라", `지시:${text}\n\n무진 보고:\n${work}\n\n하연 검증:\n${audit}\n\n사용자에게 최종 상황을 3줄 이내로 보고하라.`, cwd);
+      const sum = await runAgent("아라", `지시:${text}\n\n무진 보고:\n${work}\n\n하연 검증:\n${audit}\n\n사용자에게 최종 상황을 3줄 이내로 보고하라. 첫 줄에 전체 진행률(% 또는 N/M)과 남은 단계·예상 완료 시점을 반드시 명시하라.`, cwd);
       busy(room, "아라", false, project);
       post({ room, from: "아라", text: sum, project });
     }
