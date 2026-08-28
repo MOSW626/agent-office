@@ -2,14 +2,15 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=resizes-content">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>오피스</title>
 <style>
   :root { --bg:#0e0f13; --panel:#181a21; --line:#262933; --text:#e8eaf0; --dim:#8b90a0; --me:#3b5bdb; --accent:#7c6cf0; }
   * { box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent; }
-  body { background:var(--bg); color:var(--text); font:15px/1.55 -apple-system,"Apple SD Gothic Neo",sans-serif; height:100dvh; overflow:hidden; }
+  html, body { touch-action:manipulation; }
+  body { background:var(--bg); color:var(--text); font:15px/1.55 -apple-system,"Apple SD Gothic Neo",sans-serif; height:100dvh; overflow:hidden; position:fixed; inset:0; width:100%; }
   .screen { position:absolute; inset:0; display:flex; flex-direction:column; background:var(--bg); transition:transform .25s ease; }
   #office { transform:translateX(100%); }
   body.in #lobby { transform:translateX(-30%); }
@@ -38,16 +39,17 @@
   .tab .av { width:44px; height:44px; border-radius:50%; background:var(--line); font-size:22px; display:flex; align-items:center; justify-content:center; margin:0 auto 2px; border:2px solid transparent; }
   .tab.on .av { border-color:var(--accent); }
   .tab .nm { font-size:12px; } .tab .rl { font-size:10px; color:var(--dim); }
-  #chat { flex:1; overflow-y:auto; padding:12px 12px 4px; }
+  #chat { flex:1; overflow-y:auto; overflow-x:hidden; padding:12px 12px 4px; }
   .row { display:flex; gap:8px; margin-bottom:8px; align-items:flex-end; }
+  .row > div { min-width:0; }
   .row.cont { margin-top:-3px; }
   .row.me { flex-direction:row-reverse; }
   .time { font-size:10px; color:var(--dim); flex:none; margin-bottom:2px; }
-  .bubrow { display:flex; align-items:flex-end; gap:5px; }
+  .bubrow { display:flex; align-items:flex-end; gap:5px; min-width:0; }
   .datesep { text-align:center; margin:16px 0 10px; }
   .datesep span { font-size:11px; color:var(--dim); background:var(--panel); padding:3px 12px; border-radius:12px; }
   .row .av { width:30px; height:30px; border-radius:50%; background:var(--line); font-size:15px; display:flex; align-items:center; justify-content:center; flex:none; }
-  .bub { max-width:78%; padding:9px 12px; border-radius:14px; background:var(--panel); white-space:pre-wrap; word-break:break-word; }
+  .bub { max-width:78%; min-width:0; padding:9px 12px; border-radius:14px; background:var(--panel); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
   .row.me .bub { background:var(--me); }
   .from { font-size:11px; color:var(--dim); margin:0 0 3px 2px; }
   .bub :is(h1,h2,h3){ font-size:1em; margin:.3em 0; } .bub code{ background:#0008; padding:1px 4px; border-radius:4px; font-size:.9em; }
@@ -58,6 +60,8 @@
   #verify { accent-color:var(--accent); }
   #inrow { display:flex; gap:8px; }
   textarea { flex:1; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:9px 12px; font:inherit; resize:none; height:40px; }
+  /* iOS: 입력 글꼴 16px 미만이면 포커스 시 자동 확대됨 */
+  input[type=text], input:not([type]), textarea { font-size:16px !important; }
   button { background:var(--accent); color:#fff; border:0; border-radius:12px; padding:0 16px; font:inherit; }
   .ghost { background:var(--line); }
   #overlay { position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; z-index:9; }
@@ -315,6 +319,15 @@ async function init(){
     const warn = Math.max(c.five_hour?.pct||0, c.seven_day?.pct||0) >= 80;
     if (line) $("usage").innerHTML += `<br><span style="${warn?"color:#e8896b":""}">${line}</span>`;
   }).catch(()=>{});
+  // iOS: 키보드가 올라오면 100dvh가 줄지 않고 화면이 밀려 올라감 → 보이는 높이에 맞춰 재조정
+  if (window.visualViewport) {
+    const fit = () => {
+      document.body.style.height = window.visualViewport.height + "px";
+      window.scrollTo(0, 0);
+      $("chat").scrollTop = 1e9;
+    };
+    window.visualViewport.addEventListener("resize", fit);
+  }
   $("input").addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
   $("input").addEventListener("input", e => { e.target.style.height = "40px"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; });
 }
