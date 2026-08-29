@@ -34,9 +34,9 @@ die()  { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 # AUTO=yes (any flag given) skips every prompt and takes the default.
 ask() { # ask "question" default(y|n)
   local q="$1" def="${2:-n}" a=""
-  if [ "$AUTO" = no ] && [ -r /dev/tty ]; then
-    printf '  %s [%s] ' "$q" "$([ "$def" = y ] && echo Y/n || echo y/N)" > /dev/tty
-    read -r a < /dev/tty || true
+  if [ "$AUTO" = no ] && { : < /dev/tty; } 2>/dev/null; then
+    printf '  %s [%s] ' "$q" "$([ "$def" = y ] && echo Y/n || echo y/N)" > /dev/tty 2>/dev/null || true
+    read -r a < /dev/tty 2>/dev/null || true
   fi
   a="${a:-$def}"
   case "$a" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac

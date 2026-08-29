@@ -323,11 +323,15 @@ async function init(){
   // iOS: 키보드가 올라오면 100dvh가 줄지 않고 화면이 밀려 올라감 → 보이는 높이에 맞춰 재조정
   if (window.visualViewport) {
     const fit = () => {
-      document.body.style.height = window.visualViewport.height + "px";
+      const vv = window.visualViewport;
+      document.body.style.height = vv.height + "px";
+      // 키보드가 화면을 밀어올릴 때 브라우저가 페이지를 팬(pan)하는 만큼 되돌린다
+      document.body.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : "";
       window.scrollTo(0, 0);
       $("chat").scrollTop = 1e9;
     };
     window.visualViewport.addEventListener("resize", fit);
+    window.visualViewport.addEventListener("scroll", fit);
   }
   $("input").addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
   $("input").addEventListener("input", e => { e.target.style.height = "40px"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; });
