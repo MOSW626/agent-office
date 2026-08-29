@@ -45,20 +45,58 @@ const run = (bin, args, cwd, timeout = 600_000) =>
     child.stdin?.end(); // codex exec가 stdin EOF를 기다리며 멈추는 것 방지
   });
 
-const callBackend = async (backend, persona, prompt, cwd, args = []) => {
-  if (backend === "grok")
-    return run("grok", ["-p", `[너의 역할] ${persona}\n\n${prompt}`, "--output-format", "plain", "--no-auto-update", ...args], cwd);
-  if (backend === "codex") {
-    const out = join(DATA, `.codex-last-${Date.now()}`);
-    await run("codex", ["exec", "--skip-git-repo-check", ...args, "--output-last-message", out, `[너의 역할] ${persona}\n\n${prompt}`], cwd);
-    try { const t = readFileSync(out, "utf8").trim(); return t || "(출력 없음)"; }
-    catch { return "⚠️ codex 출력 없음"; }
-    finally { try { unlinkSync(out); } catch {} }
-  }
-  return run("claude", ["-p", prompt, "--append-system-prompt", persona, ...args], cwd);
+// 세션 연속성: (백엔드|에이전트|오피스)마다 세션을 이어써서 기억을 유지하고
+// 프롬프트 캐시를 살린다 — 매 지시마다 프로젝트를 재탐색하던 토큰 낭비의 주범 제거.
+const SESSFILE = join(DATA, "sessions.json");
+const sessMap = existsSync(SESSFILE) ? JSON.parse(readFileSync(SESSFILE, "utf8")) : {};
+const sessKey = (backend, name, cwd) => `${backend}|${name}|${cwd}`;
+const getSess = (k) => (sessMap[k] && Date.now() - sessMap[k].ts < 48 * 3600_000 ? sessMap[k].id : null);
+const setSess = (k, id) => { if (!id) return; sessMap[k] = { id, ts: Date.now() }; writeFileSync(SESSFILE, JSON.stringify(sessMap)); };
+const delSess = (k) => { delete sessMap[k]; writeFileSync(SESSFILE, JSON.stringify(sessMap)); };
+const clearOfficeSessions = (cwd) => {
+  for (const k of Object.keys(sessMap)) if (k.endsWith("|" + cwd)) delete sessMap[k];
+  writeFileSync(SESSFILE, JSON.stringify(sessMap));
 };
-// 한도 초과·오류 시 다른 모델로 자동 폴백
-const failedOut = (t) => !t || t.startsWith("⚠️") || (t.length < 400 && /usage limit|rate limit|overloaded|quota|too many requests/i.test(t));
+
+const callBackend = async (backend, name, persona, prompt, cwd, args = []) => {
+  const k = sessKey(backend, name, cwd);
+  const sid = getSess(k);
+  if (backend === "grok") {
+    const full = sid ? prompt : `[너의 역할] ${persona}\n\n${prompt}`;
+    let out = await run("grok", ["-p", full, "--output-format", "plain", "--no-auto-update", ...(sid ? ["--continue"] : []), ...args], cwd);
+    if (out.startsWith("⚠️") && sid) { delSess(k); out = await run("grok", ["-p", `[너의 역할] ${persona}\n\n${prompt}`, "--output-format", "plain", "--no-auto-update", ...args], cwd); }
+    if (!out.startsWith("⚠️")) setSess(k, "cwd"); // grok은 --continue(cwd 기준)라 마커만 저장
+    return out;
+  }
+  if (backend === "codex") {
+    const outFile = join(DATA, `.codex-last-${Date.now()}`);
+    const read = () => { try { const t = readFileSync(outFile, "utf8").trim(); unlinkSync(outFile); return t || "(출력 없음)"; } catch { return "⚠️ codex 출력 없음"; } };
+    if (sid) {
+      await run("codex", ["exec", "resume", sid, "--skip-git-repo-check", ...args, "--output-last-message", outFile, prompt], cwd);
+      const t = read();
+      if (!t.startsWith("⚠️")) { setSess(k, sid); return t; }
+      delSess(k); // 세션 소실 → 새로 시작
+    }
+    const raw = await run("codex", ["exec", "--json", "--skip-git-repo-check", ...args, "--output-last-message", outFile, `[너의 역할] ${persona}\n\n${prompt}`], cwd);
+    const m = raw.match(/"thread_id":"([a-f0-9-]+)"/);
+    if (m) setSess(k, m[1]);
+    return read();
+  }
+  // claude: --output-format json으로 session_id 획득, 이후 --resume
+  const base = ["-p", prompt, "--append-system-prompt", persona, "--output-format", "json", ...args];
+  let raw = await run("claude", sid ? [...base, "--resume", sid] : base, cwd);
+  let j = null; try { j = JSON.parse(raw); } catch {}
+  if (!j && sid) { delSess(k); raw = await run("claude", base, cwd); try { j = JSON.parse(raw); } catch {} }
+  if (j) {
+    setSess(k, j.session_id);
+    const text = (j.result ?? "").trim();
+    return j.is_error ? "⚠️ " + (text || "claude 오류") : text || "(출력 없음)";
+  }
+  return raw;
+};
+// 한도 초과·오류 시 다른 모델로 자동 폴백 ("session limit" 류 문구 포함)
+const failedOut = (t) => !t || t.startsWith("⚠️") ||
+  (t.length < 600 && /you've hit|session limit|usage limit|rate limit|overloaded|quota|too many requests/i.test(t));
 const runAgent = async (name, prompt, cwd) => {
   const a = cfg.agents[name];
   // 토큰 절약: Claude 5시간 한도 90% 이상이면 선제적으로 codex로 우회
@@ -67,17 +105,17 @@ const runAgent = async (name, prompt, cwd) => {
     try {
       const pct = (await limits())?.claude?.five_hour?.pct || 0;
       if (pct >= 90) {
-        const alt = await callBackend("codex", a.prompt, prompt, cwd);
+        const alt = await callBackend("codex", name, a.prompt, prompt, cwd);
         if (!failedOut(alt)) return `⏱ Claude 5시간 한도 ${Math.round(pct)}% — codex로 수행\n\n${alt}`;
         pre = `⏱ Claude 한도 ${Math.round(pct)}% (우회 실패, claude로 강행)\n\n`;
       }
     } catch {}
   }
-  let out = await callBackend(a.backend, a.prompt, prompt, cwd, a.args || []);
+  let out = await callBackend(a.backend, name, a.prompt, prompt, cwd, a.args || []);
   if (!failedOut(out) && pre) return pre + out;
   if (!failedOut(out)) return out;
   for (const b of ["claude", "codex", "grok"].filter((x) => x !== a.backend)) {
-    const alt = await callBackend(b, a.prompt, prompt, cwd);
+    const alt = await callBackend(b, name, a.prompt, prompt, cwd);
     if (!failedOut(alt)) return `↪️ ${a.backend} 응답 불가 → ${b}로 대체 수행\n\n${alt}`;
   }
   return out;
@@ -97,6 +135,10 @@ async function orchestrate({ room, text, project, verify }) {
       const work = await runAgent("무진", ctx + "\n\n작업을 수행하고 결과를 보고하라. 보고 첫 줄은 반드시 `📊 진행률 N/M 단계 · 남은 것: … · 예상: …` 한 줄로 시작하라.", cwd);
       busy(room, "무진", false, project);
       post({ room, from: "무진", text: work, project });
+      if (failedOut(work)) { // 실무가 실패했으면 검증·요약 체인을 돌리지 않는다 (토큰 절약)
+        post({ room, from: "system", text: "실무 단계 실패 — 검증 체인 중단. 잠시 후 다시 시도하세요.", project });
+        return;
+      }
       busy(room, "하연", true, project);
       const audit = await runAgent("하연", `사용자 지시:\n${text}\n\n무진의 결과 보고:\n${work}\n\n결과를 실물로 검증하고 문제를 지적하거나 통과를 선언하라.`, cwd);
       busy(room, "하연", false, project);
@@ -289,6 +331,11 @@ async function handle(req, res) {
         const { room, text, project, verify } = JSON.parse(body);
         if (!cfg.agents[room] || !text) return json(res, 400, { error: "bad request" });
         post({ room, from: "me", text, project });
+        if (text.trim() === "/새세션") { // 이 오피스의 이어쓰기 세션을 리셋 (컨텍스트가 꼬였을 때)
+          clearOfficeSessions(cfg.projects[project]?.path || DIR);
+          post({ room, from: "system", text: "🔄 이 오피스의 에이전트 세션을 초기화했습니다. 다음 지시부터 새 기억으로 시작합니다.", project });
+          return json(res, 200, { ok: true });
+        }
         orchestrate({ room, text, project, verify });
         json(res, 200, { ok: true });
       } catch (e) { json(res, 400, { error: e.message }); }
@@ -389,7 +436,8 @@ async function handle(req, res) {
       return `- ${p}: 최근 활동 ${last ? new Date(last).toLocaleString("ko") : "없음"}${title ? ` / 마지막 주제: ${title}` : ""}`;
     }).join("\n");
     const out = await runAgent("아라", `아침 브리핑 시간이다. 아래는 각 오피스(프로젝트)의 최근 활동 현황이다.\n${status}\n\nPROJECTS.md도 참고해서, 각 오피스별 한 줄 현황과 오늘 챙기면 좋을 것 1~2가지를 브리핑하라. 7줄 이내.`, DIR);
-    post({ room: "아라", from: "아라", text: "🌅 아침 브리핑\n\n" + out, project: "agent_manager" });
+    if (failedOut(out)) post({ room: "아라", from: "system", text: "🌅 아침 브리핑 실패 (전 백엔드 한도/오류). 나중에 아라 방에서 '브리핑'이라고 지시하면 재시도합니다.", project: "agent_manager" });
+    else post({ room: "아라", from: "아라", text: "🌅 아침 브리핑\n\n" + out, project: "agent_manager" });
     return;
   }
   if (u.pathname === "/api/todo") {

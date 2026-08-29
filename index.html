@@ -196,6 +196,7 @@ async function send(){
   if (!text) return;
   $("input").value = ""; $("input").style.height = "40px";
   await fetch("/api/send", { method:"POST", body: JSON.stringify({ room, text, project: office, verify: $("verify").checked }) });
+  $("verify").checked = false; // 교차검증은 1회성 — 켜둔 채 잊으면 매 지시가 3연타(토큰 3배)
   load();
 }
 function showBusy(){
