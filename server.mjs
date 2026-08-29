@@ -435,7 +435,7 @@ async function handle(req, res) {
       }
       return `- ${p}: 최근 활동 ${last ? new Date(last).toLocaleString("ko") : "없음"}${title ? ` / 마지막 주제: ${title}` : ""}`;
     }).join("\n");
-    const out = await runAgent("아라", `아침 브리핑 시간이다. 아래는 각 오피스(프로젝트)의 최근 활동 현황이다.\n${status}\n\nPROJECTS.md도 참고해서, 각 오피스별 한 줄 현황과 오늘 챙기면 좋을 것 1~2가지를 브리핑하라. 7줄 이내.`, DIR);
+    const out = await runAgent("아라", `아침 브리핑 시간이다. 아래는 각 오피스(프로젝트)의 최근 활동 현황이다.\n${status}\n\nPROJECTS.md를 참고해 아래 형식을 정확히 지켜라. 인사말·의례 문구·자기소개 금지, 군더더기 없는 압축 존댓말.\n1행: "⭐ 오늘 1순위: <가장 중요한 액션 하나>"\n빈 줄 후, 변화가 있는 오피스만 "· <오피스> — <현황과 오늘 할 일, 한 줄>". 변화 없는 오피스들은 마지막에 "· 나머지 N곳 변화 없음" 한 줄로 묶어라.\n사용자가 정해야 할 것이 있으면 맨 끝에 "🔔 결정 대기: <항목>" 한 줄 (없으면 생략).\n전체 8줄 이내.`, DIR);
     if (failedOut(out)) post({ room: "아라", from: "system", text: "🌅 아침 브리핑 실패 (전 백엔드 한도/오류). 나중에 아라 방에서 '브리핑'이라고 지시하면 재시도합니다.", project: "agent_manager" });
     else post({ room: "아라", from: "아라", text: "🌅 아침 브리핑\n\n" + out, project: "agent_manager" });
     return;
