@@ -31,7 +31,7 @@ const post = (msg) => {
   broadcast({ type: "msg", ...msg });
   if (msg.from !== "me") notify(`${msg.project || ""} · ${msg.from}`, msg.text);
 };
-const busy = (room, who, on, project) => broadcast({ type: "busy", room, who, on, project });
+const busy = (room, who, on, project) => broadcast({ type: "busy", room, who, on, project, ts: Date.now() });
 
 // launchd 실행 시 PATH가 최소로 잡히므로 homebrew·node 경로를 명시적으로 보강
 const PATH_ENV = [process.env.PATH, dirname(process.execPath), "/opt/homebrew/bin", "/usr/local/bin",

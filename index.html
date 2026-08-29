@@ -55,6 +55,8 @@
   .bub :is(h1,h2,h3){ font-size:1em; margin:.3em 0; } .bub code{ background:#0008; padding:1px 4px; border-radius:4px; font-size:.9em; }
   .bub pre{ background:#0008; padding:8px; border-radius:8px; overflow-x:auto; margin:.3em 0; } .bub a{ color:#9db4ff; }
   #busy { font-size:12px; color:var(--dim); padding:0 16px 4px; min-height:18px; }
+  .pulse { color:#5fd68a; animation:pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
   footer { padding:8px 10px calc(env(safe-area-inset-bottom) + 8px); background:var(--panel); border-top:1px solid var(--line); }
   #bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; font-size:12px; }
   #verify { accent-color:var(--accent); }
@@ -200,8 +202,11 @@ async function send(){
   load();
 }
 function showBusy(){
-  const on = Object.entries(busyset).filter(([k,v])=>v && k.startsWith(office+"|"+room+"|")).map(([k])=>k.split("|")[2]);
-  $("busy").textContent = on.length ? on.join(", ") + " 작업 중…" : "";
+  const now = Date.now();
+  const fmt = ms => { const s = Math.floor(ms/1000); return s < 60 ? s+"초" : Math.floor(s/60)+"분 "+(s%60)+"초"; };
+  const on = Object.entries(busyset).filter(([k,v])=>v && k.startsWith(office+"|"+room+"|"))
+    .map(([k,v]) => `${CFG.agents[k.split("|")[2]]?.avatar||""} ${k.split("|")[2]} 작업 중 · ${fmt(now - v.ts)}`);
+  $("busy").innerHTML = on.length ? `<span class="pulse">●</span> ${on.join("  |  ")} <small style="color:var(--dim)">— 보통 30초~3분, 큰 작업은 10분+</small>` : "";
 }
 async function openFiles(){
   ov.classList.add("show"); $("ovtitle").textContent = office;
@@ -304,7 +309,7 @@ async function init(){
   es.onmessage = e => {
     const ev = JSON.parse(e.data);
     if (ev.type === "msg" && ev.room === room && ev.project === office) load();
-    if (ev.type === "busy") { busyset[ev.project+"|"+ev.room+"|"+ev.who] = ev.on; if(office) showBusy(); }
+    if (ev.type === "busy") { busyset[ev.project+"|"+ev.room+"|"+ev.who] = ev.on ? { ts: ev.ts || Date.now() } : null; if(office) showBusy(); }
   };
   fetch("/api/usage").then(r=>r.json()).then(u=>{
     const today = new Date().toLocaleDateString("sv");
@@ -333,6 +338,7 @@ async function init(){
     window.visualViewport.addEventListener("resize", fit);
     window.visualViewport.addEventListener("scroll", fit);
   }
+  setInterval(() => { if (office) showBusy(); }, 1000); // 경과시간 실시간 갱신
   $("input").addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
   $("input").addEventListener("input", e => { e.target.style.height = "40px"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; });
 }
