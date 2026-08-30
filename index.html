@@ -224,19 +224,13 @@ async function openSession(id){
   $("ovbody").innerHTML = ms.map(m => m.role === "user"
     ? `<div class="row me"><div class="bub">${md(m.text)}</div></div>`
     : `<div class="row"><div class="av">✳️</div><div><div class="from">Claude</div><div class="bub">${md(m.text)}</div></div></div>`).join("")
-    + `<div id="resrow" style="display:flex;gap:8px;padding:10px 0 20px"><textarea id="resin" rows="1" placeholder="이 세션에 이어서 지시…" style="flex:1"></textarea><button onclick="resume('${id}')">전송</button></div>`;
+    + `<div style="padding:10px 0 20px"><button style="width:100%;padding:12px" onclick="adopt('${id}')">💬 이 방(${esc(room)})에서 이어가기</button><small style="color:var(--dim);display:block;margin-top:6px">채팅창으로 돌아가 이 세션에 이어서 대화합니다 (기록도 채팅창에 남음)</small></div>`;
   $("ovbody").scrollTop = 1e9;
 }
-async function resume(id){
-  const text = $("resin").value.trim();
-  if (!text) return;
-  $("resin").value = ""; $("resin").placeholder = "실행 중… (수 분 걸릴 수 있음)";
-  const r = await (await fetch("/api/resume", { method:"POST", body: JSON.stringify({ project: office, id, text }) })).json();
-  $("resrow").insertAdjacentHTML("beforebegin",
-    `<div class="row me"><div class="bub">${md(text)}</div></div>
-     <div class="row"><div class="av">✳️</div><div><div class="from">Claude (이어짐)</div><div class="bub">${md(r.text || r.error)}</div></div></div>`);
-  $("resin").placeholder = "이 세션에 이어서 지시…";
-  $("ovbody").scrollTop = 1e9;
+async function adopt(id){
+  const r = await (await fetch("/api/adopt", { method:"POST", body: JSON.stringify({ project: office, room, id }) })).json();
+  if (r.error) return alert(r.error);
+  ov.classList.remove("show");
 }
 let LIM = null;
 const bar = (label, pct, sub) => {

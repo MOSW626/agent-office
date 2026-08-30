@@ -58,6 +58,13 @@ const clearOfficeSessions = (cwd) => {
   writeFileSync(SESSFILE, JSON.stringify(sessMap));
 };
 
+// 서버 재시작으로 처리 중이던 지시가 유실됐으면 알려준다
+{
+  const last = messages.at(-1);
+  if (last && last.from === "me")
+    setTimeout(() => post({ room: last.room, from: "system", text: "⚠️ 서버가 재시작되어 직전 지시가 처리되지 못했습니다. 다시 보내주세요.", project: last.project }), 1000);
+}
+
 const callBackend = async (backend, name, persona, prompt, cwd, args = []) => {
   const k = sessKey(backend, name, cwd);
   const sid = getSess(k);
@@ -381,17 +388,21 @@ async function handle(req, res) {
       return [p, !last ? "none" : now - last < 300_000 ? "working" : now - last < 86_400_000 ? "today" : "idle"];
     })));
   }
-  if (u.pathname === "/api/resume" && req.method === "POST") {
+  // 과거 세션을 현재 방의 이어쓰기 세션으로 연결 → 이후 대화는 일반 채팅창에서 그 세션에 이어짐
+  if (u.pathname === "/api/adopt" && req.method === "POST") {
     let body = "";
     req.on("data", (c) => (body += c));
-    req.on("end", async () => {
+    req.on("end", () => {
       try {
-        const { project, id, text } = JSON.parse(body);
+        const { project, room, id } = JSON.parse(body);
         const cwd = cfg.projects[project]?.path;
         const sid = (id || "").replace(/[^a-f0-9-]/g, "");
-        if (!cwd || !sid || !text) return json(res, 400, { error: "bad request" });
-        const out = await run("claude", ["-p", text, "--resume", sid], cwd);
-        json(res, 200, { text: out });
+        if (!cwd || !sid) return json(res, 400, { error: "bad request" });
+        if (cfg.agents[room]?.backend !== "claude")
+          return json(res, 400, { error: "claude 백엔드 방(아라·무진)에서만 이어갈 수 있습니다. 방을 바꾼 뒤 다시 선택하세요." });
+        setSess(sessKey("claude", room, cwd), sid);
+        post({ room, from: "system", text: `📎 과거 세션(${sid.slice(0, 8)})을 이 방에 연결했습니다. 다음 지시부터 그 세션에 이어서 대화합니다.`, project });
+        json(res, 200, { ok: true });
       } catch (e) { json(res, 400, { error: e.message }); }
     });
     return;
