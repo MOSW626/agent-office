@@ -331,6 +331,10 @@ async function init(){
     };
     window.visualViewport.addEventListener("resize", fit);
     window.visualViewport.addEventListener("scroll", fit);
+    // iOS PWA에선 키보드 개폐 시 resize가 늦거나 안 올 때가 있음 → 포커스 전후 1초간 강제 재보정
+    const fitBurst = () => { let n = 0; const t = setInterval(() => { fit(); if (++n >= 20) clearInterval(t); }, 50); };
+    $("input").addEventListener("focus", fitBurst);
+    $("input").addEventListener("blur", fitBurst);
   }
   setInterval(() => { if (office) showBusy(); }, 1000); // 경과시간 실시간 갱신
   $("input").addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
